@@ -24,8 +24,8 @@ HANDLE WINAPI CreateFileW_Wrapper(
 {
 	// P4G opens sound files with FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, then sends them to XACT3.
 	// XACT3 reads them asynchronously.
-	// For some reason, on some drives, the reads just stop completing after a while...
-	// Removing the no buffering flag seems to fix it, but I can't seem to reproduce the issue with small test programs so who knows if this is actually a full solution.
+	// XACT3's reads are always aligned to at least 512 bytes, but are not always aligned to 4096 bytes, and will fail on drives with 4K blocks.
+	// Remove the no buffering flag to fix
 	dwFlagsAndAttributes &= ~FILE_FLAG_NO_BUFFERING;
 
 	// Call the original CreateFileW function
