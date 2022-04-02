@@ -34,9 +34,8 @@ void* HookFunction_Internal(const char* DLLName, const char* FunctionName, void*
 	{
 		PIMAGE_IMPORT_DESCRIPTOR Descriptor = Descriptors + ImportDLLIndex;
 		const char* ImportDLLName = (const char*)BaseAddress + Descriptor->Name;
-
 		// Check if we found our DLL in the import table
-		if (!strcmp(ImportDLLName, DLLName))
+		if (!_stricmp(ImportDLLName, DLLName))
 		{
 			PIMAGE_THUNK_DATA ImportNameTable = (PIMAGE_THUNK_DATA)(BaseAddress + Descriptor->OriginalFirstThunk);
 			int Offset = 0;
