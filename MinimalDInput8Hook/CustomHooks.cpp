@@ -1,15 +1,6 @@
 #include "stdafx.h"
 #include "CustomHooks.h"
 
-typedef HANDLE(WINAPI*CreateFileA_t)(
-	LPCSTR                lpFileName,
-	DWORD                 dwDesiredAccess,
-	DWORD                 dwShareMode,
-	LPSECURITY_ATTRIBUTES lpSecurityAttributes,
-	DWORD                 dwCreationDisposition,
-	DWORD                 dwFlagsAndAttributes,
-	HANDLE                hTemplateFile);
-
 typedef HANDLE(WINAPI*CreateFileW_t)(
 	LPCWSTR                lpFileName,
 	DWORD                 dwDesiredAccess,
@@ -19,33 +10,7 @@ typedef HANDLE(WINAPI*CreateFileW_t)(
 	DWORD                 dwFlagsAndAttributes,
 	HANDLE                hTemplateFile);
 
-CreateFileA_t OriginalCreateFileA;
 CreateFileW_t OriginalCreateFileW;
-
-HANDLE WINAPI CreateFileA_Wrapper(
-	LPCSTR                lpFileName,
-	DWORD                 dwDesiredAccess,
-	DWORD                 dwShareMode,
-	LPSECURITY_ATTRIBUTES lpSecurityAttributes,
-	DWORD                 dwCreationDisposition,
-	DWORD                 dwFlagsAndAttributes,
-	HANDLE                hTemplateFile
-)
-{
-	// Do our custom stuff and parameter rewriting
-	WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), lpFileName, (DWORD)strlen(lpFileName), nullptr, nullptr);
-	WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), "\n", 1, nullptr, nullptr);
-
-	// Call the original CreateFileA function
-	return OriginalCreateFileA(
-		lpFileName,
-		dwDesiredAccess,
-		dwShareMode,
-		lpSecurityAttributes,
-		dwCreationDisposition,
-		dwFlagsAndAttributes,
-		hTemplateFile);
-}
 
 HANDLE WINAPI CreateFileW_Wrapper(
 	LPCWSTR                lpFileName,
@@ -57,9 +22,11 @@ HANDLE WINAPI CreateFileW_Wrapper(
 	HANDLE                hTemplateFile
 )
 {
-	// Do our custom stuff and parameter rewriting
-	WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), lpFileName, (DWORD)wcslen(lpFileName), nullptr, nullptr);
-	WriteConsoleW(GetStdHandle(STD_OUTPUT_HANDLE), L"\n", 1, nullptr, nullptr);
+	// P4G opens sound files with FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED, then sends them to XACT3.
+	// XACT3 reads them asynchronously.
+	// For some reason, on some drives, the reads just stop completing after a while...
+	// Removing the no buffering flag seems to fix it, but I can't seem to reproduce the issue with small test programs so who knows if this is actually a full solution.
+	dwFlagsAndAttributes &= ~FILE_FLAG_NO_BUFFERING;
 
 	// Call the original CreateFileW function
 	return OriginalCreateFileW(
@@ -74,12 +41,6 @@ HANDLE WINAPI CreateFileW_Wrapper(
 
 void SetupHooks()
 {
-	// Create a console for Debug output
-	AllocConsole();
-
-	// Setup hooks here, see examples below
-	
-	OriginalCreateFileA = HookFunction("KERNEL32.dll", "CreateFileA", &CreateFileA_Wrapper);
 	OriginalCreateFileW = HookFunction("KERNEL32.dll", "CreateFileW", &CreateFileW_Wrapper);
 }
 
